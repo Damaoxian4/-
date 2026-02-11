@@ -1,9 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { RelationshipAnalysis } from "../types";
 
-// 移除了顶层的初始化，避免在 process 未定义时导致页面白屏或立即报错
-// const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 const SYSTEM_PROMPT = `
 你是一位精通《麻衣神相》、《柳庄相法》与现代心理学的面相情感合盘大师。你的分析风格一针见血，逻辑严密，不盲目吹捧，也不危言耸听。
 
@@ -60,9 +57,43 @@ const SYSTEM_PROMPT = `
 const resultCache = new Map<string, RelationshipAnalysis>();
 
 const generateCacheKey = (male: string, female: string) => {
-  // We use the length and the last 30 characters as a simple fingerprint
-  // to avoid hashing the entire base64 string while ensuring uniqueness for file uploads.
   return `${male.length}:${male.slice(-30)}|${female.length}:${female.slice(-30)}`;
+};
+
+/**
+ * Robustly retrieve API Key from various environment configurations.
+ * Supports Vite, Create React App, and standard Process Env.
+ */
+const getApiKey = (): string | undefined => {
+  let key: string | undefined = undefined;
+
+  // 1. Try Vite (import.meta.env) - Cast to any to avoid TS errors
+  try {
+    const meta = import.meta as any;
+    if (meta && meta.env) {
+      // Prioritize VITE_GEMINI_API_KEY as recommended
+      key = meta.env.VITE_GEMINI_API_KEY || meta.env.VITE_API_KEY || meta.env.GEMINI_API_KEY || meta.env.API_KEY;
+    }
+  } catch (e) {
+    // Ignore errors if import.meta is not available
+  }
+
+  // 2. If not found, try process.env (Node/CRA/Webpack)
+  if (!key) {
+    try {
+      if (typeof process !== "undefined" && process.env) {
+        key = process.env.VITE_GEMINI_API_KEY ||
+              process.env.GEMINI_API_KEY || 
+              process.env.REACT_APP_GEMINI_API_KEY || 
+              process.env.REACT_APP_API_KEY || 
+              process.env.API_KEY;
+      }
+    } catch (e) {
+      // Ignore errors if process is not available
+    }
+  }
+
+  return key ? key.trim() : undefined;
 };
 
 export const analyzeFaces = async (
@@ -75,19 +106,11 @@ export const analyzeFaces = async (
     return resultCache.get(cacheKey)!;
   }
 
-  // 2. Safe Initialization (Runtime Check)
-  let apiKey: string | undefined;
-  try {
-    // 兼容处理：检查 process 是否存在，防止在浏览器环境中抛出 ReferenceError
-    if (typeof process !== 'undefined' && process.env) {
-      apiKey = process.env.API_KEY;
-    }
-  } catch (e) {
-    console.warn("Environment check failed:", e);
-  }
+  // 2. Safe Initialization
+  const apiKey = getApiKey();
 
   if (!apiKey) {
-    throw new Error("API key is missing. Please check your environment variables (process.env.API_KEY).");
+    throw new Error("未找到 API Key。请在 Netlify 环境变量中配置 'VITE_GEMINI_API_KEY'。");
   }
 
   const ai = new GoogleGenAI({ apiKey });
