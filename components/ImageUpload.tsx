@@ -43,17 +43,17 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ gender, image, onUpload, onCl
         {/* Decorative Frame Border */}
         <div className={`absolute inset-0 pointer-events-none z-20 border-[6px] 
           ${image ? 'border-amber-900/60' : 'border-stone-800'} 
-          ${isMale ? 'rounded-t-lg rounded-b-lg' : 'rounded-t-full rounded-b-lg'}
+          rounded-lg
           transition-colors duration-500
         `}></div>
         
         {/* Inner Border/Matte */}
         <div className={`absolute inset-[6px] pointer-events-none z-20 border border-stone-700/50
-          ${isMale ? 'rounded-t-[2px] rounded-b-[2px]' : 'rounded-t-full rounded-b-[2px]'}
+          rounded-[2px]
         `}></div>
 
         <div className={`w-full h-full bg-[#1c1917] overflow-hidden flex flex-col items-center justify-center relative
-          ${isMale ? 'rounded-t-lg rounded-b-lg' : 'rounded-t-full rounded-b-lg'}
+          rounded-lg
         `}>
           
           {image ? (
