@@ -106,12 +106,19 @@ export const analyzeFaces = async (
       config: {
         systemInstruction: SYSTEM_PROMPT,
         responseMimeType: "application/json",
-        temperature: 0.6, // Slightly lower temperature for more consistent/rigorous analysis
+        temperature: 0.6,
+        // CRITICAL: Disable safety filters to allow face analysis which is often flagged
+        safetySettings: [
+          { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+          { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+          { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+          { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }
+        ]
       }
     });
 
     const text = response.text;
-    if (!text) throw new Error("API returned empty response");
+    if (!text) throw new Error("API returned empty response (possibly blocked)");
 
     const result = JSON.parse(text) as RelationshipAnalysis;
 

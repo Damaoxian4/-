@@ -28,8 +28,26 @@ const App: React.FC = () => {
       setTimeout(() => {
         resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 100);
-    } catch (err) {
-      setError("测算过程中天机受阻，请稍后再试或更换照片。");
+    } catch (err: any) {
+      // 更加详细的错误处理，帮助排查问题
+      let errorMessage = "测算过程中天机受阻，请稍后再试或更换照片。";
+      
+      if (err instanceof Error) {
+        // 如果是 API Key 问题
+        if (err.message.includes("API key")) {
+          errorMessage = "配置错误：未找到有效的 API Key，请检查环境变量设置。";
+        } 
+        // 如果是安全拦截
+        else if (err.message.includes("SAFETY") || err.message.includes("blocked")) {
+          errorMessage = "照片因包含敏感信息被拦截，请尝试更换照片。";
+        }
+        // 显示具体的错误信息以便调试（生产环境可去掉）
+        else {
+          errorMessage = `测算失败: ${err.message}`;
+        }
+      }
+      
+      setError(errorMessage);
       console.error(err);
     } finally {
       setLoading(false);
