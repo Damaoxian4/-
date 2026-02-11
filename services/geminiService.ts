@@ -52,8 +52,6 @@ const SYSTEM_PROMPT = `
 `;
 
 // Simple in-memory cache to store results for image pairs
-// Key: combined signature of male and female image strings
-// Value: RelationshipAnalysis object
 const resultCache = new Map<string, RelationshipAnalysis>();
 
 const generateCacheKey = (male: string, female: string) => {
@@ -61,36 +59,22 @@ const generateCacheKey = (male: string, female: string) => {
 };
 
 /**
- * Robustly retrieve API Key from various environment configurations.
- * Supports Vite, Create React App, and standard Process Env.
+ * 获取 API Key
+ * 支持 VITE_GEMINI_API_KEY 和 GEMINI_API_KEY
  */
 const getApiKey = (): string | undefined => {
   let key: string | undefined = undefined;
 
-  // 1. Try Vite (import.meta.env) - Cast to any to avoid TS errors
-  try {
-    const meta = import.meta as any;
-    if (meta && meta.env) {
-      // Prioritize VITE_GEMINI_API_KEY as recommended
-      key = meta.env.VITE_GEMINI_API_KEY || meta.env.VITE_API_KEY || meta.env.GEMINI_API_KEY || meta.env.API_KEY;
-    }
-  } catch (e) {
-    // Ignore errors if import.meta is not available
+  // 1. Try Vite (import.meta.env)
+  // @ts-ignore
+  if (typeof import.meta !== 'undefined' && import.meta.env) {
+    // @ts-ignore
+    key = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY || import.meta.env.VITE_API_KEY;
   }
-
-  // 2. If not found, try process.env (Node/CRA/Webpack)
-  if (!key) {
-    try {
-      if (typeof process !== "undefined" && process.env) {
-        key = process.env.VITE_GEMINI_API_KEY ||
-              process.env.GEMINI_API_KEY || 
-              process.env.REACT_APP_GEMINI_API_KEY || 
-              process.env.REACT_APP_API_KEY || 
-              process.env.API_KEY;
-      }
-    } catch (e) {
-      // Ignore errors if process is not available
-    }
+  
+  // 2. Try Standard Process Env (fallback)
+  if (!key && typeof process !== 'undefined' && process.env) {
+    key = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || process.env.API_KEY;
   }
 
   return key ? key.trim() : undefined;
@@ -100,23 +84,25 @@ export const analyzeFaces = async (
   maleBase64: string,
   femaleBase64: string
 ): Promise<RelationshipAnalysis> => {
-  // 1. Check Cache
   const cacheKey = generateCacheKey(maleBase64, femaleBase64);
   if (resultCache.has(cacheKey)) {
     return resultCache.get(cacheKey)!;
   }
 
-  // 2. Safe Initialization
   const apiKey = getApiKey();
 
+  // Debug log (will show in browser console)
+  console.log("API Key Status:", apiKey ? "Loaded (Starts with " + apiKey.substring(0, 4) + "...)" : "Not Found");
+
   if (!apiKey) {
-    throw new Error("未找到 API Key。请在 Netlify 环境变量中配置 'VITE_GEMINI_API_KEY'。");
+    throw new Error(
+      "API Key missing. Please set 'VITE_GEMINI_API_KEY' in Netlify Environment Variables AND Redeploy."
+    );
   }
 
   const ai = new GoogleGenAI({ apiKey });
 
   try {
-    // Clean base64 strings if they contain prefixes
     const cleanMale = maleBase64.replace(/^data:image\/\w+;base64,/, "");
     const cleanFemale = femaleBase64.replace(/^data:image\/\w+;base64,/, "");
 
@@ -124,31 +110,16 @@ export const analyzeFaces = async (
       model: 'gemini-3-flash-preview',
       contents: {
         parts: [
-          {
-            inlineData: {
-              mimeType: 'image/jpeg',
-              data: cleanMale
-            }
-          },
-          {
-            text: "这是男方 (乾造) 的照片。"
-          },
-          {
-            inlineData: {
-              mimeType: 'image/jpeg',
-              data: cleanFemale
-            }
-          },
-          {
-            text: "这是女方 (坤造) 的照片。请根据面相特征进行严谨、真实的合盘分析。"
-          }
+          { inlineData: { mimeType: 'image/jpeg', data: cleanMale } },
+          { text: "这是男方 (乾造) 的照片。" },
+          { inlineData: { mimeType: 'image/jpeg', data: cleanFemale } },
+          { text: "这是女方 (坤造) 的照片。请根据面相特征进行严谨、真实的合盘分析。" }
         ]
       },
       config: {
         systemInstruction: SYSTEM_PROMPT,
         responseMimeType: "application/json",
         temperature: 0.6,
-        // CRITICAL: Disable safety filters to allow face analysis which is often flagged
         safetySettings: [
           { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
           { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
@@ -159,11 +130,9 @@ export const analyzeFaces = async (
     });
 
     const text = response.text;
-    if (!text) throw new Error("API returned empty response (possibly blocked)");
+    if (!text) throw new Error("API returned empty response");
 
     const result = JSON.parse(text) as RelationshipAnalysis;
-
-    // 3. Save to Cache
     resultCache.set(cacheKey, result);
 
     return result;

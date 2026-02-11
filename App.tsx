@@ -33,15 +33,19 @@ const App: React.FC = () => {
       let errorMessage = "测算过程中天机受阻，请稍后再试或更换照片。";
       
       if (err instanceof Error) {
-        // 如果是 API Key 问题
-        if (err.message.includes("API key")) {
+        // 优先显示 Service 层抛出的具体配置错误 (包含 "Redeploy" 提示的那个)
+        if (err.message.includes("API Key missing")) {
+          errorMessage = `配置错误: ${err.message}`;
+        }
+        // 其他 API Key 相关错误
+        else if (err.message.includes("API key")) {
           errorMessage = "配置错误：未找到有效的 API Key，请检查环境变量设置。";
         } 
-        // 如果是安全拦截
+        // 安全拦截
         else if (err.message.includes("SAFETY") || err.message.includes("blocked")) {
           errorMessage = "照片因包含敏感信息被拦截，请尝试更换照片。";
         }
-        // 显示具体的错误信息以便调试（生产环境可去掉）
+        // 其他错误
         else {
           errorMessage = `测算失败: ${err.message}`;
         }
