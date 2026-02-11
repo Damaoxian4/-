@@ -1,7 +1,8 @@
 import { GoogleGenAI } from "@google/genai";
 import { RelationshipAnalysis } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// 移除了顶层的初始化，避免在 process 未定义时导致页面白屏或立即报错
+// const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const SYSTEM_PROMPT = `
 你是一位精通《麻衣神相》、《柳庄相法》与现代心理学的面相情感合盘大师。你的分析风格一针见血，逻辑严密，不盲目吹捧，也不危言耸听。
@@ -74,6 +75,23 @@ export const analyzeFaces = async (
     return resultCache.get(cacheKey)!;
   }
 
+  // 2. Safe Initialization (Runtime Check)
+  let apiKey: string | undefined;
+  try {
+    // 兼容处理：检查 process 是否存在，防止在浏览器环境中抛出 ReferenceError
+    if (typeof process !== 'undefined' && process.env) {
+      apiKey = process.env.API_KEY;
+    }
+  } catch (e) {
+    console.warn("Environment check failed:", e);
+  }
+
+  if (!apiKey) {
+    throw new Error("API key is missing. Please check your environment variables (process.env.API_KEY).");
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
+
   try {
     // Clean base64 strings if they contain prefixes
     const cleanMale = maleBase64.replace(/^data:image\/\w+;base64,/, "");
@@ -122,7 +140,7 @@ export const analyzeFaces = async (
 
     const result = JSON.parse(text) as RelationshipAnalysis;
 
-    // 2. Save to Cache
+    // 3. Save to Cache
     resultCache.set(cacheKey, result);
 
     return result;
