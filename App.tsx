@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import ImageUpload from './components/ImageUpload';
 import DimensionChart from './components/DimensionChart';
 import DetailedResult from './components/DetailedResult';
+import LoadingOverlay from './components/LoadingOverlay';
 import { UploadedImage, Gender, RelationshipAnalysis } from './types';
 import { analyzeFaces } from './services/geminiService';
 
@@ -79,6 +80,9 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen pb-20 bg-[#050505] text-stone-200 selection:bg-amber-900 selection:text-white font-serif overflow-x-hidden relative">
       
+      {/* 魔法加载遮罩层 */}
+      {loading && <LoadingOverlay />}
+
       {/* --- Oriental Mystical Background Layer --- */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         {/* Deep Ink Base Gradient */}
